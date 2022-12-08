@@ -9,11 +9,13 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QLineEdit,
     QWidget,
+    QHeaderView,
+    QAbstractItemView,
 )
 from PyQt6.QtGui import QAction
 from pathlib import Path
 import sys
-from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PyQt6.QtCore import Qt, QAbstractTableModel
 
 
 from settings import (
@@ -52,6 +54,11 @@ class TableModel(QAbstractTableModel):
         print(self._data)
         self.endResetModel()
 
+    def flags(self, index):  # 必须实现的接口方法，不实现，则View中数据不可编辑
+        if index.isValid():
+            return Qt.ItemFlag.ItemIsEnabled
+        return Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
+
     # def headerData(self, section, orientation, role=Qt.DisplayRole):
     #     # 实现标题行的定义
     #     if role != Qt.DisplayRole:
@@ -77,11 +84,6 @@ class TableModel(QAbstractTableModel):
     #             self.endResetModel()
     #             return True
     #     return False
-
-    def flags(self, index):  # 必须实现的接口方法，不实现，则View中数据不可编辑
-        if index.isValid():
-            return Qt.ItemFlag.ItemIsEnabled
-        return Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
 
     # def insertRows(self, position, rows=1, index=QModelIndex()):
     #     # position 插入位置；rows 插入行数
@@ -133,6 +135,8 @@ class InterfaceMianWindow(QMainWindow):
         self.action_open_files = QAction('choose files', self)
         self.action_open_files.setShortcut('Ctrl+O')
         self.action_open_files.triggered.connect(self.showDialog)
+
+        self.table_rule.setHorizontalHeader(QHeaderView(['a', 'b']))
 
         self.botton_trigger_server.setCheckable(True)
         # self.botton_trigger_server.clicked[bool].connect(self.demo_data)
