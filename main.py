@@ -1,4 +1,4 @@
-from interface import InterfaceMianWindow
+from src.interface import InterfaceMianWindow
 from PyQt6.QtWidgets import QApplication
 import sys
 
