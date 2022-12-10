@@ -119,11 +119,22 @@ class TableModel(QAbstractTableModel):
                 return False
         return False
 
-    def add_rows(self, rows_df):
+    def concat(self, rows_df):
         self._data = pd.concat((self._data, rows_df), ignore_index=True)
 
-    def del_rows(self):
-        ...
+    def drop(self, labels, axis=0):
+        self._data.drop(labels=labels, axis=axis, inplace=True)
+
+    def query_index(self, header, value):
+        sub_df = self._data.query(
+            f'''{header} == {value if isinstance(value, int|float) else f'"{value}"'}'''
+        )
+        if sub_df.shape[0] > 1:
+            self._main_window.statusBar().showMessage(
+                f'Search {value} from {header} error.'
+            )
+            return
+        return sub_df.index
 
 
 class InterfaceMianWindow(QMainWindow):
@@ -167,7 +178,7 @@ class InterfaceMianWindow(QMainWindow):
         self.button_trigger_server.clicked[bool].connect(self.trigger_server)
 
         self.button_add_rule.clicked.connect(self.add_rule)
-        # self.button_delete_rule.clicked.connect(self.add_rule)
+        self.button_delete_rule.clicked.connect(self.delete_rule)
         # self.button_generate_qr_code.clicked.connect(self.add_rule)
         # self.button_trigger_server.clicked.connect(self.add_rule)
         # self.button_refresh_score.clicked.connect(self.add_rule)
@@ -280,8 +291,9 @@ class InterfaceMianWindow(QMainWindow):
                     'total': [0] * len(files[0]),
                 }
             )
-            self.table_file_model.add_rows(rows_df)
+            self.table_file_model.concat(rows_df)
             self.table_file_model.layoutChanged.emit()
+        self.statusBar().showMessage('Select files done')
 
     def _init_data(self):
         data = pd.DataFrame(
@@ -304,11 +316,12 @@ class InterfaceMianWindow(QMainWindow):
 
     def trigger_server(self):
         button_text = self.button_trigger_server.text()
-        print(f'Server status {button_text}')
+        print()
         if button_text == 'start server':
             self.button_trigger_server.setText('stop server')
         else:
             self.button_trigger_server.setText('start server')
+        self.statusBar().showMessage(f'Server status {button_text}')
 
     def add_rule(self):
         if '' in RULES:
@@ -316,14 +329,21 @@ class InterfaceMianWindow(QMainWindow):
             return
         RULES[''] = 0
         rows_df = pd.DataFrame({'rule': [''], 'weight': [0]})
-        self.table_rule_model.add_rows(rows_df)
+        self.table_rule_model.concat(rows_df)
         self.table_rule_model.layoutChanged.emit()
+        self.statusBar().showMessage('add rule')
 
     def delete_rule(self):
-        # rows_df = pd.DataFrame({'rule': [''], 'weight': [0]})
-        # self.table_rule_model.add_rows(rows_df)
-        # self.table_rule_model.layoutChanged.emit()
-        ...
+        index = self.table_rule_model.index(self.table_rule.currentIndex().row(), 0)
+        value = self.table_rule_model.itemData(index)[0]
+        df_index = self.table_rule_model.query_index(TABLE_RULE_HEADER[0], value)
+        self.table_rule_model.drop(df_index)
+        TABLE_FILE_HEADER.pop(TABLE_FILE_HEADER.index(value))
+        self.table_file_model.drop(value, axis=1)
+        RULES.pop(value)
+        self.table_rule_model.layoutChanged.emit()
+        self.table_file_model.layoutChanged.emit()
+        self.statusBar().showMessage('delete rule')
 
 
 if __name__ == '__main__':
