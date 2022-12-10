@@ -14,7 +14,6 @@ from PyQt6.QtGui import QAction
 from pathlib import Path
 import sys
 from PyQt6.QtCore import Qt, QAbstractTableModel
-import typing
 import pandas as pd
 
 
@@ -54,12 +53,16 @@ class TableModel(QAbstractTableModel):
             if orientation == Qt.Orientation.Vertical:
                 return str(self._data.index[section])
 
+    def add_rows(self, rows_df):
+        self._data = pd.concat((self._data, rows_df))
+
 
 class InterfaceMianWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self._init_widget()
         self._set_widget()
+        self._init_data()
         self._initUI()
 
     def _init_widget(self):
@@ -93,16 +96,14 @@ class InterfaceMianWindow(QMainWindow):
 
         self.button_trigger_server.setCheckable(True)
         self.button_trigger_server.clicked[bool].connect(self.trigger_server)
-        # self.button_add_rule.clicked.connect(
-        #     self.table_rule.rowsInserted(QModelIndex, 1, 2)
-        # )
-        self.button_edit_rule.setCheckable(True)
-        self.button_delete_rule.setCheckable(True)
-        self.button_generate_QR_code.setCheckable(True)
-        self.button_trigger_server.setCheckable(True)
-        self.button_refresh_score.setCheckable(True)
-        # self.button_export_data.setCheckable(True)
-        self.button_export_data.clicked.connect(self.init_data)
+
+        self.button_add_rule.clicked.connect(self.add_rule)
+        # self.button_edit_rule.clicked.connect(self.add_rule)
+        # self.button_delete_rule.clicked.connect(self.add_rule)
+        # self.button_generate_QR_code.clicked.connect(self.add_rule)
+        # self.button_trigger_server.clicked.connect(self.add_rule)
+        # self.button_refresh_score.clicked.connect(self.add_rule)
+        # self.button_export_data.clicked.connect(self._init_data)
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&Files')
@@ -182,12 +183,20 @@ class InterfaceMianWindow(QMainWindow):
         files = QFileDialog.getOpenFileNames(self, 'open uri', home_dir)
 
         if files[0]:
-            self.textEdit_files.setText('\n'.join(files[0]))
+            rows_df = pd.DataFrame(
+                {
+                    'file name': files[0],
+                    'score': [0] * len(files[0]),
+                    'total': [0] * len(files[0]),
+                }
+            )
+            self.table_file_model.add_rows(rows_df)
+            self.table_file_model.layoutChanged.emit()
 
-    def init_data(self):
+    def _init_data(self):
         data = pd.DataFrame(
             [],
-            columns=['file name', 'score', 'like', 'total'],
+            columns=['file name', 'score', 'total'],
         )
         self.table_file_model = TableModel(data)
         self.table_file.setModel(self.table_file_model)
@@ -208,8 +217,19 @@ class InterfaceMianWindow(QMainWindow):
             self.button_trigger_server.setText('start server')
 
     def add_rule(self):
-        # self.table_rule_model
-        ...
+        rows_df = pd.DataFrame({'rule': [''], 'weight': [0]})
+        self.table_rule_model.add_rows(rows_df)
+        self.table_rule_model.layoutChanged.emit()
+
+    def delete_rule(self):
+        rows_df = pd.DataFrame({'rule': [''], 'weight': [0]})
+        self.table_rule_model.add_rows(rows_df)
+        self.table_rule_model.layoutChanged.emit()
+
+    def add_rule(self):
+        rows_df = pd.DataFrame({'rule': [''], 'weight': [0]})
+        self.table_rule_model.add_rows(rows_df)
+        self.table_rule_model.layoutChanged.emit()
 
 
 if __name__ == '__main__':
