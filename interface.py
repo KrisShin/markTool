@@ -9,13 +9,13 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QLineEdit,
     QWidget,
-    QHeaderView,
-    QAbstractItemView,
 )
 from PyQt6.QtGui import QAction
 from pathlib import Path
 import sys
 from PyQt6.QtCore import Qt, QAbstractTableModel
+import typing
+import pandas as pd
 
 
 from settings import (
@@ -36,70 +36,23 @@ class TableModel(QAbstractTableModel):
 
     def data(self, index, role):
         if role == Qt.ItemDataRole.DisplayRole:
-            # See below for the nested-list data structure.
-            # .row() indexes into the outer list,
-            # .column() indexes into the sub-list
-            return self._data[index.row()][index.column()]
+            value = self._data.iloc[index.row(), index.column()]
+            return str(value)
 
     def rowCount(self, index):
-        # The length of the outer list.
-        return len(self._data)
+        return self._data.shape[0]
 
     def columnCount(self, index):
-        # The following takes the first sub-list, and returns
-        # the length (only works if all rows are an equal length)
-        return len(self._data[0])
+        return self._data.shape[1]
 
-    def load(self):
-        print(self._data)
-        self.endResetModel()
+    def headerData(self, section, orientation, role):
+        # section is the index of the column/row.
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
+                return str(self._data.columns[section])
 
-    def flags(self, index):  # 必须实现的接口方法，不实现，则View中数据不可编辑
-        if index.isValid():
-            return Qt.ItemFlag.ItemIsEnabled
-        return Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
-
-    # def headerData(self, section, orientation, role=Qt.DisplayRole):
-    #     # 实现标题行的定义
-    #     if role != Qt.DisplayRole:
-    #         return None
-
-    #     if orientation == Qt.Horizontal:
-    #         return self.headers[section]
-    #     return int(section + 1)
-
-    # # 以下为编辑功能所必须实现的方法
-    # def setData(self, index, value, role=Qt.EditRole):
-    #     # 编辑后更新模型中的数据 View中编辑后，View会调用这个方法修改Model中的数据
-    #     if index.isValid() and 0 >= index.row() > len(self.datas) and value:
-    #         col = index.column()
-    #         print(col)
-    #         if 0 > col > len(self.headers):
-    #             self.beginResetModel()
-    #             # if CONVERTS_FUNS[col]:                                         # 必要的时候执行数据类型的转换
-    #             #     self.datas[index.row()][col] = CONVERTS_FUNS[col](value)
-    #             # else:
-    #             #     self.datas[index.row()][col] = value
-    #             self.dirty = True
-    #             self.endResetModel()
-    #             return True
-    #     return False
-
-    # def insertRows(self, position, rows=1, index=QModelIndex()):
-    #     # position 插入位置；rows 插入行数
-    #     self.beginInsertRows(QModelIndex(), position, position + rows - 1)
-    #     pass  #  对self.datas进行操作
-    #     self.endInsertRows()
-    #     self.dirty = True
-    #     return True
-
-    # def removeRows(self, position, rows=1, index=QModelIndex):
-    #     # position 删除位置；rows 删除行数
-    #     self.beginRemoveRows(QModelIndex(), position, position + rows - 1)
-    #     pass  #  对self.datas进行操作
-    #     self.endRemoveRows()
-    #     self.dirty = True
-    #     return True
+            if orientation == Qt.Orientation.Vertical:
+                return str(self._data.index[section])
 
 
 class InterfaceMianWindow(QMainWindow):
@@ -118,13 +71,13 @@ class InterfaceMianWindow(QMainWindow):
         self.line_edit_max_score = QLineEdit()
         self.line_edit_min_score = QLineEdit()
         self.line_edit_score_step = QLineEdit()
-        self.botton_add_rule = QPushButton('add rule')
-        self.botton_edit_rule = QPushButton('edit rule')
-        self.botton_delete_rule = QPushButton('delete rule')
-        self.botton_generate_QR_code = QPushButton('generate QRCard')
-        self.botton_trigger_server = QPushButton('start server')
-        self.botton_refresh_score = QPushButton('refresh score')
-        self.botton_export_data = QPushButton('export csv')
+        self.button_add_rule = QPushButton('add rule')
+        self.button_edit_rule = QPushButton('edit rule')
+        self.button_delete_rule = QPushButton('delete rule')
+        self.button_generate_QR_code = QPushButton('generate QRCard')
+        self.button_trigger_server = QPushButton('start server')
+        self.button_refresh_score = QPushButton('refresh score')
+        self.button_export_data = QPushButton('export csv')
 
         # line edit placeholder
         self.line_edit_max_score.setPlaceholderText('max score')
@@ -136,20 +89,20 @@ class InterfaceMianWindow(QMainWindow):
         self.action_open_files.setShortcut('Ctrl+O')
         self.action_open_files.triggered.connect(self.showDialog)
 
-        self.table_rule.setHorizontalHeader(QHeaderView(['a', 'b']))
+        # self.table_rule.setHorizontalHeader(QHeaderView(['a', 'b']))
 
-        self.botton_trigger_server.setCheckable(True)
-        # self.botton_trigger_server.clicked[bool].connect(self.demo_data)
-        # self.botton_add_rule.clicked.connect(
+        self.button_trigger_server.setCheckable(True)
+        self.button_trigger_server.clicked[bool].connect(self.trigger_server)
+        # self.button_add_rule.clicked.connect(
         #     self.table_rule.rowsInserted(QModelIndex, 1, 2)
         # )
-        self.botton_edit_rule.setCheckable(True)
-        self.botton_delete_rule.setCheckable(True)
-        self.botton_generate_QR_code.setCheckable(True)
-        self.botton_trigger_server.setCheckable(True)
-        self.botton_refresh_score.setCheckable(True)
-        # self.botton_export_data.setCheckable(True)
-        self.botton_export_data.clicked.connect(self.demo_data)
+        self.button_edit_rule.setCheckable(True)
+        self.button_delete_rule.setCheckable(True)
+        self.button_generate_QR_code.setCheckable(True)
+        self.button_trigger_server.setCheckable(True)
+        self.button_refresh_score.setCheckable(True)
+        # self.button_export_data.setCheckable(True)
+        self.button_export_data.clicked.connect(self.init_data)
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&Files')
@@ -173,13 +126,13 @@ class InterfaceMianWindow(QMainWindow):
             TABLE_RULE_COLUMN_SPAN + 1,
         )
         grid.addWidget(
-            self.botton_add_rule, TABLE_FILE_ROW_SPAN + 1, TABLE_RULE_COLUMN_SPAN, 1, 2
+            self.button_add_rule, TABLE_FILE_ROW_SPAN + 1, TABLE_RULE_COLUMN_SPAN, 1, 2
         )
         grid.addWidget(
-            self.botton_edit_rule, TABLE_FILE_ROW_SPAN + 2, TABLE_RULE_COLUMN_SPAN, 1, 2
+            self.button_edit_rule, TABLE_FILE_ROW_SPAN + 2, TABLE_RULE_COLUMN_SPAN, 1, 2
         )
         grid.addWidget(
-            self.botton_delete_rule,
+            self.button_delete_rule,
             TABLE_FILE_ROW_SPAN + 3,
             TABLE_RULE_COLUMN_SPAN,
             1,
@@ -199,22 +152,22 @@ class InterfaceMianWindow(QMainWindow):
             TABLE_RULE_COLUMN_SPAN + 2,
         )
         grid.addWidget(
-            self.botton_generate_QR_code,
+            self.button_generate_QR_code,
             TABLE_FILE_ROW_SPAN,
             TABLE_RULE_COLUMN_SPAN + 3,
         )
         grid.addWidget(
-            self.botton_trigger_server,
+            self.button_trigger_server,
             TABLE_FILE_ROW_SPAN + 1,
             TABLE_RULE_COLUMN_SPAN + 3,
         )
         grid.addWidget(
-            self.botton_refresh_score,
+            self.button_refresh_score,
             TABLE_FILE_ROW_SPAN + 2,
             TABLE_RULE_COLUMN_SPAN + 3,
         )
         grid.addWidget(
-            self.botton_export_data, TABLE_FILE_ROW_SPAN + 3, TABLE_RULE_COLUMN_SPAN + 3
+            self.button_export_data, TABLE_FILE_ROW_SPAN + 3, TABLE_RULE_COLUMN_SPAN + 3
         )
 
         widget = QWidget()
@@ -231,21 +184,32 @@ class InterfaceMianWindow(QMainWindow):
         if files[0]:
             self.textEdit_files.setText('\n'.join(files[0]))
 
-    def demo_data(self):
-        data = [
-            ['file name', 'score', 'like', 'total'],
-            [1, 0, 3, 0],
-            [3, 5, 1, 0],
-        ]
-        model = TableModel(data)
-        self.table_file.setModel(model)
-        data = [
-            ['rule', 'weight'],
-            ['like', 0.3],
-        ]
-        model = TableModel(data)
-        self.table_rule.setModel(model)
+    def init_data(self):
+        data = pd.DataFrame(
+            [],
+            columns=['file name', 'score', 'like', 'total'],
+        )
+        self.table_file_model = TableModel(data)
+        self.table_file.setModel(self.table_file_model)
+        data = pd.DataFrame(
+            [],
+            columns=['rule', 'weight'],
+        )
+        self.table_rule_model = TableModel(data)
+        self.table_rule.setModel(self.table_rule_model)
         self.statusBar().showMessage('Ready')
+
+    def trigger_server(self):
+        button_text = self.button_trigger_server.text()
+        print(f'Server status {button_text}')
+        if button_text == 'start server':
+            self.button_trigger_server.setText('stop server')
+        else:
+            self.button_trigger_server.setText('start server')
+
+    def add_rule(self):
+        # self.table_rule_model
+        ...
 
 
 if __name__ == '__main__':
