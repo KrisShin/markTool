@@ -13,7 +13,7 @@ def save_file(data: dict, file_name: str = 'config'):
 
 
 def read_file(keys: str | list, file_name: str = 'config'):
-    if isinstance(keys, 'str'):
+    if isinstance(keys, str):
         keys = [keys]
     vals = []
     with open(f'./{file_name}', 'r') as fp:
