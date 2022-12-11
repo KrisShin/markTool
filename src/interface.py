@@ -1,3 +1,5 @@
+import os
+from threading import Thread
 from PyQt6.QtWidgets import (
     QMainWindow,
     QFileDialog,
@@ -16,11 +18,14 @@ from pathlib import Path
 import sys
 from PyQt6.QtCore import Qt, QAbstractTableModel
 import pandas as pd
+from src.functions import generate_qr_code
+from src.server_apis import WebServerManager
 
 
 from src.settings import (
     EDITABLE,
     RULES,
+    SERVER_ALLOWED,
     TABLE_FILE_COLUMN_SPAN,
     TABLE_FILE_DEFAULT_HEADER,
     TABLE_FILE_HEADER,
@@ -31,6 +36,7 @@ from src.settings import (
     WINDOW_POSITION,
     WINDOW_SIZE,
     WINDOW_TITLE,
+    SERVER_THREAD,
 )
 
 
@@ -154,6 +160,7 @@ class InterfaceMianWindow(QMainWindow):
         self.line_edit_max_score = QLineEdit()
         self.line_edit_min_score = QLineEdit()
         self.line_edit_score_step = QLineEdit()
+        self.button_confirm = QPushButton('confirm')
         self.button_add_rule = QPushButton('add rule')
         self.button_delete_rule = QPushButton('delete rule')
         self.button_generate_qr_code = QPushButton('generate QRCode')
@@ -167,6 +174,19 @@ class InterfaceMianWindow(QMainWindow):
         self.line_edit_min_score.setPlaceholderText('min score')
         self.line_edit_score_step.setPlaceholderText('score step')
 
+        self._enabled_widget = [
+            self.table_file,
+            self.table_rule,
+            self.check_exclude_edge_score,
+            # self.label_exclude_edge_score,
+            self.line_edit_max_score,
+            self.line_edit_min_score,
+            self.line_edit_score_step,
+            # self.button_confirm,
+            self.button_add_rule,
+            self.button_delete_rule,
+        ]
+
     def _set_widget(self):
         self.action_open_files = QAction('choose files', self)
         self.action_open_files.setShortcut('Ctrl+O')
@@ -179,8 +199,10 @@ class InterfaceMianWindow(QMainWindow):
 
         self.button_add_rule.clicked.connect(self.add_rule)
         self.button_delete_rule.clicked.connect(self.delete_rule)
-        # self.button_generate_qr_code.clicked.connect(self.add_rule)
-        # self.button_trigger_server.clicked.connect(self.add_rule)
+        self.button_confirm.setCheckable(True)
+        self.button_confirm.clicked[bool].connect(self.confirm_config)
+        self.button_generate_qr_code.clicked.connect(generate_qr_code)
+        self.button_trigger_server.clicked.connect(self.trigger_server)
         # self.button_refresh_score.clicked.connect(self.add_rule)
         # self.button_export_data.clicked.connect(self._init_data)
 
@@ -244,6 +266,13 @@ class InterfaceMianWindow(QMainWindow):
             2,
         )
         grid.addWidget(
+            self.button_confirm,
+            TABLE_FILE_ROW_SPAN + 4,
+            TABLE_RULE_COLUMN_SPAN + 1,
+            1,
+            2,
+        )
+        grid.addWidget(
             self.button_generate_qr_code,
             TABLE_FILE_ROW_SPAN,
             TABLE_RULE_COLUMN_SPAN + 4,
@@ -280,10 +309,14 @@ class InterfaceMianWindow(QMainWindow):
         self.setWindowTitle(WINDOW_TITLE)
 
     def showDialog(self):
+        if not EDITABLE:
+            self.show_prompt('Release widget first.')
+            return False
         home_dir = str(Path.home())
         files = QFileDialog.getOpenFileNames(self, 'open uri', home_dir)
 
         if files[0]:
+            global WORKS
             rows_df = pd.DataFrame(
                 {
                     'file name': files[0],
@@ -292,6 +325,7 @@ class InterfaceMianWindow(QMainWindow):
                 }
             )
             self.table_file_model.concat(rows_df)
+            WORKS = {os.path.split(path)[-1]: {} for path in files[0]}
             self.table_file_model.layoutChanged.emit()
         self.statusBar().showMessage('Select files done')
 
@@ -315,13 +349,22 @@ class InterfaceMianWindow(QMainWindow):
         self.message_box.exec()
 
     def trigger_server(self):
-        button_text = self.button_trigger_server.text()
-        print()
-        if button_text == 'start server':
+        global SERVER_THREAD, SERVER_ALLOWED
+        if self.button_trigger_server.isChecked():
             self.button_trigger_server.setText('stop server')
+            self.statusBar().showMessage(f'Server status launched')
+            if not SERVER_THREAD:
+                SERVER_THREAD = Thread(target=WebServerManager.launch_server)
+                SERVER_THREAD.start()
+                SERVER_ALLOWED = True
+                self.show_prompt('server started')
         else:
+            if SERVER_THREAD:
+                SERVER_ALLOWED = False
+                self.statusBar().showMessage(f'Server status stoped')
+                SERVER_THREAD = None
+                self.show_prompt('server stop')
             self.button_trigger_server.setText('start server')
-        self.statusBar().showMessage(f'Server status {button_text}')
 
     def add_rule(self):
         if '' in RULES:
@@ -344,6 +387,58 @@ class InterfaceMianWindow(QMainWindow):
         self.table_rule_model.layoutChanged.emit()
         self.table_file_model.layoutChanged.emit()
         self.statusBar().showMessage('delete rule')
+
+    def _validate_score_range_step(
+        self, value_max_score, value_min_score, value_score_step
+    ):
+        try:
+            value_max_score = round(float(value_max_score), 2)
+        except ValueError:
+            return False, 'max score error'
+        try:
+            value_min_score = round(float(value_min_score), 2)
+        except ValueError:
+            return False, 'min score error'
+        try:
+            value_score_step = round(float(value_score_step), 2)
+        except ValueError:
+            return False, 'score step error'
+
+        if not all((value_max_score > 0, value_min_score >= 0, value_score_step > 0)):
+            return False, 'must more than 0'
+
+        if value_min_score > value_max_score:
+            return False, 'min score greater than max score'
+
+        if (value_max_score - value_min_score) / value_score_step % 1 != 0:
+            return False, 'step error'
+        return True, None
+
+    def _set_widget_enabled(self, widgets: list | None = None):
+        if widgets is None:
+            widgets = self._enabled_widget
+        for widget in widgets:
+            widget.setEnabled(EDITABLE)
+
+    def confirm_config(self):
+        global EDITABLE
+        if self.button_confirm.isChecked():
+            value_max_score = self.line_edit_max_score.text()
+            value_min_score = self.line_edit_min_score.text()
+            value_score_step = self.line_edit_score_step.text()
+            is_valid, error = self._validate_score_range_step(
+                value_max_score, value_min_score, value_score_step
+            )
+            if not is_valid:
+                self.show_prompt(error)
+                self.button_confirm.setChecked(False)
+                return
+            self.button_confirm.setText('release')
+            EDITABLE = False
+        else:
+            EDITABLE = True
+            self.button_confirm.setText('confirm')
+        self._set_widget_enabled()
 
 
 if __name__ == '__main__':
