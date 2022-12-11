@@ -2,6 +2,7 @@ import qrcode
 from src.server_apis import WebServerManager
 
 from src.settings import BASE_URL
+from PIL import Image
 
 
 def generate_qr_code():

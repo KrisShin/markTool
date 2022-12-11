@@ -42,7 +42,7 @@ def get_works():
 class WebServerManager:
     @classmethod
     def test_server(cls) -> int:
-        resp = requests.get(f'http://localhost:{SERVER_PORT}/test_server/')
+        resp = requests.get(f'http://0.0.0.0:{SERVER_PORT}/test_server/')
         return resp.status_code
 
     @classmethod

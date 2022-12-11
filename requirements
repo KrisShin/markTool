@@ -2,3 +2,5 @@ pyqt6
 fastapi
 uvicorn
 pandas
+qrcode
+requests

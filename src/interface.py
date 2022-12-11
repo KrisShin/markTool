@@ -18,6 +18,7 @@ from pathlib import Path
 import sys
 from PyQt6.QtCore import Qt, QAbstractTableModel
 import pandas as pd
+import numpy
 from src.functions import generate_qr_code
 from src.server_apis import WebServerManager
 
