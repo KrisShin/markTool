@@ -42,12 +42,12 @@ def get_works():
 class WebServerManager:
     @classmethod
     def test_server(cls) -> int:
-        resp = requests.get(f'http://0.0.0.0:{SERVER_PORT}/test_server/')
+        resp = requests.get(f'http://localhost:{SERVER_PORT}/test_server/')
         return resp.status_code
 
     @classmethod
     def launch_server(cls):
-        uvicorn.run(app, port=SERVER_PORT, log_level="info")
+        uvicorn.run(app, host='0.0.0.0', port=SERVER_PORT, log_level="info")
 
 
 if __name__ == "__main__":
