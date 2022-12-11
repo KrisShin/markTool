@@ -3,10 +3,10 @@ import pandas as pd
 from src.settings import (
     EDITABLE,
     RULES,
+    WORKS,
     TABLE_FILE_DEFAULT_HEADER,
     TABLE_FILE_HEADER,
     TABLE_RULE_HEADER,
-    WORKS,
 )
 
 
@@ -53,6 +53,7 @@ class TableModel(QAbstractTableModel):
             return EDITABLE
         header_text = self._data.columns[index.column()]
         if role == Qt.ItemDataRole.EditRole and self._validate_edit(header_text, value):
+            global RULES, WORKS
             if header_text == TABLE_RULE_HEADER[0]:
                 old_rule = self._validate_rule_name(value, index)
                 if old_rule is False:

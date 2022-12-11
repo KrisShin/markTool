@@ -27,6 +27,7 @@ from src.server_apis import WebServerManager
 from src.settings import (
     EDITABLE,
     RULES,
+    WORKS,
     SERVER_ALLOWED,
     TABLE_FILE_COLUMN_SPAN,
     TABLE_FILE_HEADER,
@@ -214,12 +215,15 @@ class InterfaceMianWindow(QMainWindow):
         files = QFileDialog.getOpenFileNames(self, 'open uri', home_dir)
 
         if files[0]:
+            row_count = len(files[0])
             global WORKS
+            rule_df = {rule: [0] * row_count for rule in RULES}
             rows_df = pd.DataFrame(
                 {
                     'file name': files[0],
-                    'score': [0] * len(files[0]),
-                    'total': [0] * len(files[0]),
+                    'score': [0] * row_count,
+                    **rule_df,
+                    'total': [0] * row_count,
                 }
             )
             self.init_table_file_data()
