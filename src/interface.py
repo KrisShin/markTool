@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 from threading import Thread
 from PyQt6.QtWidgets import (
@@ -18,8 +19,8 @@ from pathlib import Path
 import sys
 from PyQt6.QtCore import Qt, QAbstractTableModel
 import pandas as pd
-from src.functions import generate_qr_code
-from src.utils import save_file
+from src.functions import generate_qr_code, get_total_score
+from src.utils import read_file, save_file
 from src.server_apis import WebServerManager
 
 
@@ -294,13 +295,13 @@ class InterfaceMianWindow(QMainWindow):
             1,
             2,
         )
-        grid.addWidget(
-            self.button_export_data,
-            TABLE_FILE_ROW_SPAN + 3,
-            TABLE_RULE_COLUMN_SPAN + 4,
-            1,
-            2,
-        )
+        # grid.addWidget(
+        #     self.button_export_data,
+        #     TABLE_FILE_ROW_SPAN + 3,
+        #     TABLE_RULE_COLUMN_SPAN + 4,
+        #     1,
+        #     2,
+        # )
 
         widget = QWidget()
         widget.setLayout(grid)
@@ -361,8 +362,8 @@ class InterfaceMianWindow(QMainWindow):
         global SERVER_THREAD, SERVER_ALLOWED
         if not self.button_confirm.isChecked():
             self.show_prompt('Please confirm first.')
+            self.button_trigger_server.setChecked(False)
             return
-        save_file('config')
         if self.button_trigger_server.isChecked():
             if not SERVER_THREAD:
                 SERVER_THREAD = Thread(target=WebServerManager.launch_server)
@@ -473,6 +474,42 @@ class InterfaceMianWindow(QMainWindow):
                 'value_score_step': value_score_step,
             }
         )
+
+    def _refresh_file_table_data(self):
+        data = []
+        for work in WORKS.values():
+            line = [work['uri'], work['score']]
+            for header in RULES:
+                line.append(work[header])
+            line.append(work['total'])
+            data.append(line)
+        df = pd.DataFrame(data, columns=TABLE_FILE_HEADER)
+        self.init_table_file_data()
+        self.table_file_model.concat(df)
+        self.table_file_model.layoutChanged.emit()
+
+    def refresh_score(self):
+        global WORKS
+        WORKS = read_file('WORKS')
+        exclude_edge = self.check_exclude_edge_score.isChecked()
+        score_weight = 1 - sum(RULES.values())
+        rule_total_mapping = defaultdict(lambda: 0)
+        for work in WORKS:
+            for key in RULES:
+                rule_total_mapping[key] += work[key]
+
+        for work in WORKS:
+            scores = work['scores'].values()
+            if not scores:
+                work['score'] = 0
+            if exclude_edge:
+                scores.pop(scores.index(max(scores)))
+                scores.pop(scores.index(min(scores)))
+            work['score'] = sum(scores) / len(scores)
+            work['total'] = get_total_score(
+                work['score'], score_weight, work, rule_total_mapping
+            )
+        self._refresh_file_table_data()
 
 
 if __name__ == '__main__':

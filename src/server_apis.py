@@ -112,7 +112,8 @@ def post_score(request: Request, filename):
         score = value_min_score + (
             (score - value_min_score) // value_score_step * value_score_step
         )
-    file_info.update({'ip': request.client.host, 'score': score})
+    file_info.update({'scores': {'ip': request.client.host, 'score': score}})
+    print(f'{request.client.host} mark {filename} {score}.')
     save_file({'WORKS': work_mapping})
 
     return f"""
