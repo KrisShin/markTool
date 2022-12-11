@@ -64,6 +64,7 @@ class TableModel(QAbstractTableModel):
 
             elif header_text == TABLE_RULE_HEADER[1]:
                 # validate all weights sum over 1 or not
+                value = float(value)
                 sum_rule_weight = sum(RULES.values())
                 if sum_rule_weight > 1 or sum_rule_weight + value > 1:
                     self._main_window.show_prompt(
