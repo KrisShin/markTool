@@ -18,8 +18,8 @@ from pathlib import Path
 import sys
 from PyQt6.QtCore import Qt, QAbstractTableModel
 import pandas as pd
-import numpy
 from src.functions import generate_qr_code
+from src.utils import save_file
 from src.server_apis import WebServerManager
 
 
@@ -325,25 +325,33 @@ class InterfaceMianWindow(QMainWindow):
                     'total': [0] * len(files[0]),
                 }
             )
+            self.init_table_file_data()
             self.table_file_model.concat(rows_df)
-            WORKS = {os.path.split(path)[-1]: {} for path in files[0]}
+            WORKS = {os.path.split(path)[-1]: {'uri': path} for path in files[0]}
+            save_file({'WORKS': WORKS})
             self.table_file_model.layoutChanged.emit()
         self.statusBar().showMessage('Select files done')
 
     def _init_data(self):
+        self.init_table_file_data()
+        self.init_table_rule_data()
+        self.statusBar().showMessage('Ready')
+
+    def init_table_file_data(self):
         data = pd.DataFrame(
             list(),
             columns=TABLE_FILE_HEADER,
         )
         self.table_file_model = TableModel(data, self)
         self.table_file.setModel(self.table_file_model)
+
+    def init_table_rule_data(self):
         data = pd.DataFrame(
             list(),
             columns=TABLE_RULE_HEADER,
         )
         self.table_rule_model = TableModel(data, self)
         self.table_rule.setModel(self.table_rule_model)
-        self.statusBar().showMessage('Ready')
 
     def show_prompt(self, text):
         self.message_box.setText(text)
@@ -351,21 +359,26 @@ class InterfaceMianWindow(QMainWindow):
 
     def trigger_server(self):
         global SERVER_THREAD, SERVER_ALLOWED
+        if not self.button_confirm.isChecked():
+            self.show_prompt('Please confirm first.')
+            return
+        save_file('config')
         if self.button_trigger_server.isChecked():
-            self.button_trigger_server.setText('stop server')
-            self.statusBar().showMessage(f'Server status launched')
             if not SERVER_THREAD:
                 SERVER_THREAD = Thread(target=WebServerManager.launch_server)
                 SERVER_THREAD.start()
                 SERVER_ALLOWED = True
                 self.show_prompt('server started')
+            self.button_trigger_server.setText('stop server')
+            self.statusBar().showMessage(f'Server status launched')
         else:
             if SERVER_THREAD:
                 SERVER_ALLOWED = False
-                self.statusBar().showMessage(f'Server status stoped')
                 SERVER_THREAD = None
                 self.show_prompt('server stop')
+            self.statusBar().showMessage(f'Server status stoped')
             self.button_trigger_server.setText('start server')
+        save_file({'SERVER_ALLOWED': SERVER_ALLOWED})
 
     def add_rule(self):
         if '' in RULES:
@@ -376,10 +389,14 @@ class InterfaceMianWindow(QMainWindow):
         self.table_rule_model.concat(rows_df)
         self.table_rule_model.layoutChanged.emit()
         self.statusBar().showMessage('add rule')
+        save_file({'RULES': RULES})
 
     def delete_rule(self):
         index = self.table_rule_model.index(self.table_rule.currentIndex().row(), 0)
-        value = self.table_rule_model.itemData(index)[0]
+        try:
+            value = self.table_rule_model.itemData(index)[0]
+        except KeyError:
+            return
         df_index = self.table_rule_model.query_index(TABLE_RULE_HEADER[0], value)
         self.table_rule_model.drop(df_index)
         TABLE_FILE_HEADER.pop(TABLE_FILE_HEADER.index(value))
@@ -388,6 +405,7 @@ class InterfaceMianWindow(QMainWindow):
         self.table_rule_model.layoutChanged.emit()
         self.table_file_model.layoutChanged.emit()
         self.statusBar().showMessage('delete rule')
+        save_file({'RULES': RULES, 'TABLE_FILE_HEADER': TABLE_FILE_HEADER})
 
     def _validate_score_range_step(
         self, value_max_score, value_min_score, value_score_step
@@ -422,7 +440,7 @@ class InterfaceMianWindow(QMainWindow):
             widget.setEnabled(EDITABLE)
 
     def confirm_config(self):
-        global EDITABLE
+        global EDITABLE, SERVER_ALLOWED
         if self.button_confirm.isChecked():
             value_max_score = self.line_edit_max_score.text()
             value_min_score = self.line_edit_min_score.text()
@@ -436,10 +454,25 @@ class InterfaceMianWindow(QMainWindow):
                 return
             self.button_confirm.setText('release')
             EDITABLE = False
+            SERVER_ALLOWED = False
         else:
             EDITABLE = True
+            SERVER_ALLOWED = True
+            value_max_score = None
+            value_min_score = None
+            value_score_step = None
             self.button_confirm.setText('confirm')
+
         self._set_widget_enabled()
+        save_file(
+            {
+                'EDITABLE': EDITABLE,
+                'SERVER_ALLOWED': SERVER_ALLOWED,
+                'value_max_score': value_max_score,
+                'value_min_score': value_min_score,
+                'value_score_step': value_score_step,
+            }
+        )
 
 
 if __name__ == '__main__':

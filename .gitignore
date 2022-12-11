@@ -134,3 +134,6 @@ dmypy.json
 
 # QR Code image
 server_qr_code.png
+
+# cache
+config

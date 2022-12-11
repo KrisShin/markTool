@@ -31,3 +31,7 @@ WORKS = {}
 
 SERVER_ALLOWED = False
 SERVER_THREAD = None
+
+VIDEO_EXTS = ['.mp4', '.3gp', '.flv']
+IMAGE_EXTS = ['.jpg', '.jpeg', 'png']
+TEXT_EXTS = ['.txt', '.md']
