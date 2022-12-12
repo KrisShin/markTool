@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import FastAPI, status, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from src.settings import IMAGE_EXTS, SERVER_PORT, TEXT_EXTS, VIDEO_EXTS
+from fastapi.staticfiles import StaticFiles
 
 from src.utils import read_file, save_file
 
@@ -137,6 +138,8 @@ class WebServerManager:
 
     @classmethod
     def launch_server(cls):
+        app.mount("/static", StaticFiles(directory="static"), name="static")
+        # TODO create static folder if not exist. and copy file to static directory.
         uvicorn.run(app, host='0.0.0.0', port=SERVER_PORT, log_level="info")
 
 
