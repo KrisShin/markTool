@@ -65,7 +65,7 @@ def get_file(filename):
     file_info = work_mapping.get(filename)
     if not file_info:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    uri = f'{BASE_URL}/{filename}'
+    uri = f'{BASE_URL}/{SERVER_STATICFOLDER}/{filename}'
 
     _, ext = os.path.splitext(filename)
     ext = ext.lower()
@@ -98,20 +98,24 @@ def get_file(filename):
 
 
 @app.post("/{filename}/", response_class=HTMLResponse)
-def post_score(request: Request, filename, score: str = Form()):
+def post_score(filename, score: float = Form()):
     _check_server_allowed()
     (
-        work_mapping,
+        works,
         value_max_score,
         value_min_score,
         value_score_step,
     ) = read_file(['WORKS', 'value_max_score', 'value_min_score', 'value_score_step'])
+    work_mapping = {}
+    for work in works:
+        work_mapping.update(work)
 
+    value_max_score = float(value_max_score)
+    value_min_score = float(value_min_score)
+    value_score_step = float(value_score_step)
     file_info = work_mapping.get(filename)
     if not file_info:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    # data = request.json()
-    # score = data.get('score')
 
     if not all((value_max_score > 0, value_min_score >= 0, value_score_step > 0)):
         return HTTPException(
@@ -154,7 +158,7 @@ class WebServerManager:
         WORKS = read_file('WORKS')
         if not os.path.exists(SERVER_STATICFOLDER):
             os.mkdir(f'./{SERVER_STATICFOLDER}')
-        
+
         current_files = os.listdir(f'./{SERVER_STATICFOLDER}')
         for work_dict in WORKS:
             for work_name in work_dict:
