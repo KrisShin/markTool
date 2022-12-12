@@ -73,7 +73,7 @@ def get_file(filename):
     if ext in IMAGE_EXTS:
         media_html = f'<img src="{uri}" alt="{filename}"></img>'
     elif ext in VIDEO_EXTS:
-        media_html = f'<video src="{uri}" alt="{filename}"></video>'
+        media_html = f'<video src="{uri}" alt="{filename}" controls autoplay></video>'
     elif ext in TEXT_EXTS:
         content
         with open(uri, 'r') as fp:
