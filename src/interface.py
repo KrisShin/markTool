@@ -215,8 +215,8 @@ class InterfaceMianWindow(QMainWindow):
         files = QFileDialog.getOpenFileNames(self, 'open uri', home_dir)
 
         if files[0]:
+            WORKS.clear()
             row_count = len(files[0])
-            global WORKS
             rule_df = {rule: [0] * row_count for rule in RULES}
             rows_df = pd.DataFrame(
                 {
@@ -228,7 +228,7 @@ class InterfaceMianWindow(QMainWindow):
             )
             self.init_table_file_data()
             self.table_file_model.concat(rows_df)
-            WORKS = {os.path.split(path)[-1]: {'uri': path} for path in files[0]}
+            WORKS.update({os.path.split(path)[-1]: {'uri': path} for path in files[0]})
             save_file({'WORKS': WORKS})
             self.table_file_model.layoutChanged.emit()
         self.statusBar().showMessage('Select files done')

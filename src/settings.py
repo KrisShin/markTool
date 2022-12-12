@@ -19,6 +19,7 @@ TABLE_FILE_DEFAULT_HEADER = ['file name', 'score', 'total']
 TABLE_FILE_HEADER = deepcopy(TABLE_FILE_DEFAULT_HEADER)
 TABLE_RULE_HEADER = ['rule', 'weight']
 RULES = {}
+WORKS = {}
 
 EDITABLE = True
 
@@ -27,11 +28,10 @@ _socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 _socket.connect(("8.8.8.8", 80))
 SERVER_HOST = _socket.getsockname()[0]
 BASE_URL = f'http://{SERVER_HOST}:{SERVER_PORT}'
-WORKS = {}
-
 SERVER_ALLOWED = False
 SERVER_THREAD = None
+SERVER_STATICFOLDER = 'static'
 
 VIDEO_EXTS = ['.mp4', '.3gp', '.flv']
-IMAGE_EXTS = ['.jpg', '.jpeg', 'png']
+IMAGE_EXTS = ['.jpg', '.jpeg', '.png']
 TEXT_EXTS = ['.txt', '.md']

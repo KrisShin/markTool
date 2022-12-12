@@ -1,11 +1,19 @@
 from http.client import HTTPException
 import os
+import shutil
 import requests
 import uvicorn
-from fastapi import FastAPI, status, HTTPException, Request
+from fastapi import FastAPI, status, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse
-from src.settings import IMAGE_EXTS, SERVER_PORT, TEXT_EXTS, VIDEO_EXTS
 from fastapi.staticfiles import StaticFiles
+from src.settings import (
+    BASE_URL,
+    IMAGE_EXTS,
+    SERVER_PORT,
+    SERVER_STATICFOLDER,
+    TEXT_EXTS,
+    VIDEO_EXTS,
+)
 
 from src.utils import read_file, save_file
 
@@ -29,8 +37,9 @@ def test_server():
 def get_works():
     _check_server_allowed()
     work_list = []
-    for name in read_file('WORKS'):
-        work_list.append(f'<li><a href="/{name}">{name}</a></li>')
+    for work in read_file('WORKS'):
+        for name in work:
+            work_list.append(f'<li><a href="/{name}">{name}</a></li>')
 
     return f"""
     <html>
@@ -50,13 +59,16 @@ def get_works():
 @app.get("/{filename}/", response_class=HTMLResponse)
 def get_file(filename):
     _check_server_allowed()
-    work_mapping = read_file('WORKS')
+    work_mapping = {}
+    for work in read_file('WORKS'):
+        work_mapping.update(work)
     file_info = work_mapping.get(filename)
     if not file_info:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    uri = file_info['uri']
+    uri = f'{BASE_URL}/{filename}'
 
     _, ext = os.path.splitext(filename)
+    ext = ext.lower()
     media_html = f'<h2> {filename} </h2>'
     if ext in IMAGE_EXTS:
         media_html = f'<img src="{uri}" alt="{filename}"></img>'
@@ -86,19 +98,20 @@ def get_file(filename):
 
 
 @app.post("/{filename}/", response_class=HTMLResponse)
-def post_score(request: Request, filename):
+def post_score(request: Request, filename, score: str = Form()):
     _check_server_allowed()
     (
         work_mapping,
         value_max_score,
         value_min_score,
         value_score_step,
-    ) = read_file('WORKS', 'value_max_score', 'value_min_score', 'value_score_step')
+    ) = read_file(['WORKS', 'value_max_score', 'value_min_score', 'value_score_step'])
 
     file_info = work_mapping.get(filename)
     if not file_info:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    score = request.json.get('score')
+    # data = request.json()
+    # score = data.get('score')
 
     if not all((value_max_score > 0, value_min_score >= 0, value_score_step > 0)):
         return HTTPException(
@@ -138,6 +151,19 @@ class WebServerManager:
 
     @classmethod
     def launch_server(cls):
+        WORKS = read_file('WORKS')
+        if not os.path.exists(SERVER_STATICFOLDER):
+            os.mkdir(f'./{SERVER_STATICFOLDER}')
+        
+        current_files = os.listdir(f'./{SERVER_STATICFOLDER}')
+        for work_dict in WORKS:
+            for work_name in work_dict:
+                if work_name in current_files:
+                    continue
+                shutil.copy(
+                    work_dict[work_name]['uri'],
+                    f'./{SERVER_STATICFOLDER}/{work_name}',
+                )
         app.mount("/static", StaticFiles(directory="static"), name="static")
         # TODO create static folder if not exist. and copy file to static directory.
         uvicorn.run(app, host='0.0.0.0', port=SERVER_PORT, log_level="info")

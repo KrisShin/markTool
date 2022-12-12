@@ -1,3 +1,4 @@
+import os
 from PyQt6.QtCore import Qt, QAbstractTableModel
 import pandas as pd
 from src.settings import (
@@ -8,6 +9,7 @@ from src.settings import (
     TABLE_FILE_HEADER,
     TABLE_RULE_HEADER,
 )
+from src.utils import save_file
 
 
 class TableModel(QAbstractTableModel):
@@ -53,13 +55,13 @@ class TableModel(QAbstractTableModel):
             return EDITABLE
         header_text = self._data.columns[index.column()]
         if role == Qt.ItemDataRole.EditRole and self._validate_edit(header_text, value):
-            global RULES, WORKS
+            global WORKS, RULES
             if header_text == TABLE_RULE_HEADER[0]:
                 old_rule = self._validate_rule_name(value, index)
                 if old_rule is False:
                     return False
                 RULES[value] = RULES.pop(old_rule)
-                TABLE_FILE_HEADER.append(value)
+                TABLE_FILE_HEADER.insert(-1, value)
                 self._main_window.table_file_model.layoutChanged.emit()
                 self._main_window.table_rule_model.layoutChanged.emit()
 
@@ -75,10 +77,11 @@ class TableModel(QAbstractTableModel):
                 RULES[header_text] = value
             elif header_text not in TABLE_FILE_DEFAULT_HEADER:
                 try:
-                    filename = self.itemData(index)[0]
+                    path = self._data.loc[index.row()][0]
                 except KeyError:
                     return False
-                WORKS[filename][header_text] = value
+                WORKS[os.path.split(path)[-1]][header_text] = value
+                save_file({'WORKS': WORKS})
             else:
                 return False
             self._data.iloc[index.row(), index.column()] = value
