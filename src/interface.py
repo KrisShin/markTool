@@ -100,7 +100,7 @@ class InterfaceMianWindow(QMainWindow):
         self.button_delete_rule.clicked.connect(self.delete_rule)
         self.button_confirm.setCheckable(True)
         self.button_confirm.clicked[bool].connect(self.confirm_config)
-        self.button_generate_qr_code.clicked.connect(generate_qr_code)
+        self.button_generate_qr_code.clicked.connect(self.generate_qr_code)
         self.button_trigger_server.clicked.connect(self.trigger_server)
         self.button_refresh_score.clicked.connect(self.refresh_score)
         # self.button_export_data.clicked.connect(self._init_data)
@@ -172,14 +172,14 @@ class InterfaceMianWindow(QMainWindow):
             2,
         )
         grid.addWidget(
-            self.button_generate_qr_code,
+            self.button_trigger_server,
             TABLE_FILE_ROW_SPAN,
             TABLE_RULE_COLUMN_SPAN + 4,
             1,
             2,
         )
         grid.addWidget(
-            self.button_trigger_server,
+            self.button_generate_qr_code,
             TABLE_FILE_ROW_SPAN + 1,
             TABLE_RULE_COLUMN_SPAN + 4,
             1,
@@ -378,10 +378,10 @@ class InterfaceMianWindow(QMainWindow):
     def _refresh_file_table_data(self):
         data = []
         for work in WORKS.values():
-            line = [work['uri'], work['score']]
+            line = [work['uri'], work.get('score', 0)]
             for header in RULES:
-                line.append(work[header])
-            line.append(work['total'])
+                line.append(work.get(header, 0))
+            line.append(work.get('total', 0))
             data.append(line)
         df = pd.DataFrame(data, columns=TABLE_FILE_HEADER)
         self.init_table_file_data()
@@ -390,6 +390,10 @@ class InterfaceMianWindow(QMainWindow):
 
     def refresh_score(self):
         global RULES, WORKS
+        if not self.button_confirm.isChecked():
+            self.show_prompt('Please confirm first.')
+            self.button_trigger_server.setChecked(False)
+            return
         WORKS = read_file('WORKS')
         exclude_edge = self.check_exclude_edge_score.isChecked()
         score_weight = 1 - sum(RULES.values())
@@ -413,6 +417,12 @@ class InterfaceMianWindow(QMainWindow):
             )
         self._refresh_file_table_data()
         self.statusBar().showMessage(read_file('status_msg'))
+
+    def generate_qr_code(self):
+        if generate_qr_code():
+            self.show_prompt('Success')
+            return
+        self.show_prompt('Error')
 
 
 if __name__ == '__main__':
