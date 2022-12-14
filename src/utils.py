@@ -20,4 +20,4 @@ def read_file(keys: str | list, file_name: str = 'config'):
         data = json.loads(fp.read())
         for key in keys:
             vals.append(data.get(key))
-    return vals
+    return vals if len(vals) != 1 else vals[0] 

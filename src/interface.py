@@ -102,7 +102,7 @@ class InterfaceMianWindow(QMainWindow):
         self.button_confirm.clicked[bool].connect(self.confirm_config)
         self.button_generate_qr_code.clicked.connect(generate_qr_code)
         self.button_trigger_server.clicked.connect(self.trigger_server)
-        # self.button_refresh_score.clicked.connect(self.add_rule)
+        self.button_refresh_score.clicked.connect(self.refresh_score)
         # self.button_export_data.clicked.connect(self._init_data)
 
         self.message_box.setWindowTitle("Prompt !!!")
@@ -389,27 +389,30 @@ class InterfaceMianWindow(QMainWindow):
         self.table_file_model.layoutChanged.emit()
 
     def refresh_score(self):
-        global WORKS
+        global RULES, WORKS
         WORKS = read_file('WORKS')
         exclude_edge = self.check_exclude_edge_score.isChecked()
         score_weight = 1 - sum(RULES.values())
         rule_total_mapping = defaultdict(lambda: 0)
-        for work in WORKS:
+        for work in WORKS.values():
             for key in RULES:
-                rule_total_mapping[key] += work[key]
+                rule_total_mapping[key] += work.get(key, 0)
 
-        for work in WORKS:
-            scores = work['scores'].values()
+        for work in WORKS.values():
+            scores = work.get('scores')
             if not scores:
-                work['score'] = 0
+                continue
+            scores = list(scores.values())
             if exclude_edge:
                 scores.pop(scores.index(max(scores)))
                 scores.pop(scores.index(min(scores)))
             work['score'] = sum(scores) / len(scores)
-            work['total'] = get_total_score(
-                work['score'], score_weight, work, rule_total_mapping
+            work['total'] = round(
+                get_total_score(work['score'], score_weight, work, rule_total_mapping),
+                3,
             )
         self._refresh_file_table_data()
+        self.statusBar().showMessage(read_file('status_msg'))
 
 
 if __name__ == '__main__':

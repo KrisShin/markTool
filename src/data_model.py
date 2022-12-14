@@ -74,16 +74,17 @@ class TableModel(QAbstractTableModel):
                         'Total weight of rule can not over 1.'
                     )
                     return False
-                RULES[header_text] = value
+                RULES[self._data.loc[index.row()][0]] = value
             elif header_text not in TABLE_FILE_DEFAULT_HEADER:
                 try:
                     path = self._data.loc[index.row()][0]
                 except KeyError:
                     return False
-                WORKS[os.path.split(path)[-1]][header_text] = value
-                save_file({'WORKS': WORKS})
+                WORKS[os.path.split(path)[-1]][header_text] = float(value)
             else:
                 return False
+            save_file({'WORKS': WORKS})
+            save_file({'RULES': RULES})
             self._data.iloc[index.row(), index.column()] = value
             return True
         return False

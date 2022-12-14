@@ -1,7 +1,7 @@
 import qrcode
 from src.server_apis import WebServerManager
 
-from src.settings import BASE_URL, RULES, TABLE_FILE_DEFAULT_HEADER
+from src.settings import BASE_URL, RULES
 
 
 def generate_qr_code():
@@ -14,8 +14,8 @@ def generate_qr_code():
 
 def get_total_score(score, score_weight, work, rule_total_mapping):
     total = score * score_weight
-    for key, val in work:
-        if key in TABLE_FILE_DEFAULT_HEADER:
+    for key, val in work.items():
+        if key not in RULES:
             continue
         total += RULES[key] * (val / rule_total_mapping[key])
     return total
