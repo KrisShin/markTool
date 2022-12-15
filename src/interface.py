@@ -19,7 +19,7 @@ from pathlib import Path
 import sys
 import pandas as pd
 from src.data_model import TableModel
-from src.functions import generate_qr_code, get_total_score
+from src.functions import export_csv, generate_qr_code, get_total_score
 from src.utils import read_file, save_file
 from src.server_apis import WebServerManager
 
@@ -103,7 +103,7 @@ class InterfaceMianWindow(QMainWindow):
         self.button_generate_qr_code.clicked.connect(self.generate_qr_code)
         self.button_trigger_server.clicked.connect(self.trigger_server)
         self.button_refresh_score.clicked.connect(self.refresh_score)
-        # self.button_export_data.clicked.connect(self._init_data)
+        self.button_export_data.clicked.connect(self.export_csv)
 
         self.message_box.setWindowTitle("Prompt !!!")
         menubar = self.menuBar()
@@ -192,13 +192,13 @@ class InterfaceMianWindow(QMainWindow):
             1,
             2,
         )
-        # grid.addWidget(
-        #     self.button_export_data,
-        #     TABLE_FILE_ROW_SPAN + 3,
-        #     TABLE_RULE_COLUMN_SPAN + 4,
-        #     1,
-        #     2,
-        # )
+        grid.addWidget(
+            self.button_export_data,
+            TABLE_FILE_ROW_SPAN + 3,
+            TABLE_RULE_COLUMN_SPAN + 4,
+            1,
+            2,
+        )
 
         widget = QWidget()
         widget.setLayout(grid)
@@ -421,6 +421,12 @@ class InterfaceMianWindow(QMainWindow):
     def generate_qr_code(self):
         if generate_qr_code():
             self.show_prompt('Success')
+            return
+        self.show_prompt('Error')
+
+    def export_csv(self):
+        if export_csv():
+            self.show_prompt('Sucess')
             return
         self.show_prompt('Error')
 
